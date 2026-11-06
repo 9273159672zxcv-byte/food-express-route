@@ -1,112 +1,121 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 void main() {
-  runApp(const FoodExpressApp());
+  runApp(const MyApp());
 }
 
-class FoodExpressApp extends StatelessWidget {
-  const FoodExpressApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Фуд-Экспресс',
       theme: ThemeData(
-        primaryColor: const Color(0xFFE53935),
+        primarySwatch: Colors.blue,
       ),
-      home: const MainScreen(),
+      home: const MyHomePage(),
     );
   }
 }
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({Key? key}) : super(key: key);
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MainScreenState extends State<MainScreen> {
-  String _result = '';
+class _MyHomePageState extends State<MyHomePage> {
+  bool _isLoading = false;
+  String _resultText = 'Выберите Excel-файл для загрузки';
 
   Future<void> _pickAndUploadFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['xlsx', 'xls'],
-    );
-
-    if (result != null) {
-      setState(() {
-        _result = 'Загрузка...';
-      });
-      
-      // ВАЖНО: Используем https, чтобы Android не блокировал запрос
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('https://95.163.230.180:8081/upload'),
+    try {
+      // Выбор файла
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
       );
-      
-      request.files.add(await http.MultipartFile.fromPath(
-        'file',
-        result.files.single.path!,
-      ));
 
-      try {
-        var response = await request.send();
-        var responseData = await response.stream.bytesToString();
-        var json = jsonDecode(responseData);
-        
-        setState(() {
-          if (json['status'] == 'success') {
-            _result = 'Маршрут построен! Порядок точек:\n\n' + json['optimized_order'].join('\n');
-          } else {
-            _result = 'Ошибка: ' + (json['error'] ?? 'Неизвестная ошибка');
-          }
-        });
-      } catch (e) {
-        setState(() {
-          _result = 'Ошибка сети: $e';
-        });
-      }
+      if (result == null) return; // Пользователь отменил выбор
+
+      setState(() {
+        _isLoading = true;
+        _resultText = 'Отправка файла на сервер...';
+      });
+
+      File file = File(result.files.single.path!);
+
+      // ⚠️ ВАЖНО: Адрес сервера строго с http://
+      var uri = Uri.parse('http://95.163.230.180:8081/upload');
+      var request = http.MultipartRequest('POST', uri);
+      
+      // Добавляем файл в запрос
+      request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+      // Отправляем запрос
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      setState(() {
+        _isLoading = false;
+        if (response.statusCode == 200) {
+          _resultText = 'Успех! Сервер ответил:\n${response.body}';
+        } else {
+          _resultText = 'Ошибка сервера: ${response.statusCode}\n${response.body}';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _resultText = 'Ошибка сети: $e\nПроверьте, работает ли сервер и разрешен ли http в манифесте.';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFE53935),
-        title: const Text(
-          'Фуд-Экспресс: Маршрут',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Фуд-Экспресс'),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            const Icon(Icons.local_shipping, size: 80, color: Color(0xFFE53935)),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _pickAndUploadFile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE53935),
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_isLoading)
+                const CircularProgressIndicator()
+              else
+                const Icon(Icons.local_shipping, size: 80, color: Colors.blue),
+              const SizedBox(height: 30),
+              
+              // Текст с результатом
+              Text(
+                _resultText,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
               ),
-              child: const Text('ВЫБРАТЬ ФАЙЛ EXCEL', style: TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Text(_result, style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 40),
+
+              // Кнопка выбора файла
+              ElevatedButton.icon(
+                onPressed: _isLoading ? null : _pickAndUploadFile,
+                icon: const Icon(Icons.file_upload),
+                label: const Text('ВЫБРАТЬ ФАЙЛ EXCEL'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  textStyle: const TextStyle(fontSize: 18),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
