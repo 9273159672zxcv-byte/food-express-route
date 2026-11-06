@@ -23,6 +23,7 @@ jobs:
     - run: yes | flutter doctor --android-licenses
     - run: flutter create --project-name food_express_route .
     - run: flutter pub get
+    - run: cd android && ./gradlew wrapper --gradle-version=8.9
     - run: flutter build apk --release --no-shrink
     - uses: actions/upload-artifact@v4
       with:
