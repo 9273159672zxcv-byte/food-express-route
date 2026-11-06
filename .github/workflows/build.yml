@@ -1,29 +1,25 @@
-name: Build APK
-
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-java@v4
-      with:
-        distribution: 'zulu'
-        java-version: '17'
-    - uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.24.3'
-        channel: 'stable'
-    - run: rm -rf android
-    - run: flutter create --project-name food_express_route .
-    - run: flutter pub get
-    - run: flutter build apk --release --no-shrink
-    - uses: actions/upload-artifact@v4
-      with:
-        name: release-apk
-        path: build/app/outputs/flutter-apk/app-release.apk
+workflows:
+  android-workflow:
+    name: Android Workflow
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      flutter: stable
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Create Android Folder
+        script: flutter create --platforms=android .
+      - name: Patch Android Manifest
+        script: |
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_PATH" ]; then
+            sed -i '/<application/a \        android:usesCleartextTraffic="true"' "$MANIFEST_PATH"
+            echo "Манифест успешно исправлен!"
+          else
+            echo "Ошибка: файл манифеста не найден!"
+          fi
+      - name: Build APK
+        script: flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
