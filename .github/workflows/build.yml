@@ -22,6 +22,7 @@ jobs:
     - run: flutter config --no-analytics
     - run: flutter create --project-name food_express_route .
     - run: flutter pub get
+    - run: yes | sdkmanager --licenses
     - run: flutter build apk --release
     - uses: actions/upload-artifact@v4
       with:
