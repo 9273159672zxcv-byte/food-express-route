@@ -25,6 +25,7 @@ jobs:
     - run: flutter pub get
     - run: cd android && ./gradlew wrapper --gradle-version=8.9
     - run: keytool -genkey -v -keystore ~/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+    - run: sed -i 's/buildToolsVersion ".*"/buildToolsVersion "34.0.0"/' android/app/build.gradle
     - run: flutter build apk --release --no-shrink
     - uses: actions/upload-artifact@v4
       with:
