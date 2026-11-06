@@ -3,5 +3,6 @@
     <application
         android:label="food_express_route"
         android:usesCleartextTraffic="true">
+        <meta-data android:name="flutterEmbedding" android:value="2" />
     </application>
 </manifest>
