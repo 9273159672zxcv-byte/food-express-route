@@ -43,9 +43,10 @@ class _MainScreenState extends State<MainScreen> {
         _result = 'Загрузка...';
       });
       
+      // ВАЖНО: Используем https, чтобы Android не блокировал запрос
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://95.163.230.180:8081/upload'),
+        Uri.parse('https://95.163.230.180:8081/upload'),
       );
       
       request.files.add(await http.MultipartFile.fromPath(
